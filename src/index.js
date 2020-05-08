@@ -18,25 +18,14 @@ class Board extends React.Component {
     return <Square key={coords} coords={coords}/>
   }
   dropHandler(e) {
-    console.log(e.target)
     const length = e.dataTransfer.getData('length')
     const name = e.dataTransfer.getData('name')
-    if ((parseInt(e.target.dataset.coords[2]) - length) < -1 || !e.target.classList.contains('empty')) return
-    for (let i = 0; i < length; i++) {
-      const x = parseInt(e.target.dataset.coords[0])
-      const y = parseInt(e.target.dataset.coords[2]) - i
-      const node = document.querySelector(`[data-coords='${x},${y}']`)
-      node.classList.add(`${name}`)
-      node.classList.remove('empty')
-      if (i === 0) {
-        node.dataset.length = length
-        node.dataset.orientation = 'vertical'
-        node.dataset.name = name
-        node.addEventListener('click', changeShipOrientation)
-      }
+    const coords = e.target.dataset.coords
+    if ( hasEnoughSpace(coords, length, 'vertical') ) {
+      placeShip(name, length, coords, 'vertical')
+      document.getElementById(name).draggable = false
+      document.getElementById(name).style.opacity = 0
     }
-    document.getElementById(name).draggable = false
-    document.getElementById(name).style.opacity = 0
   }
   render () {
     let squares = []
@@ -115,19 +104,43 @@ ReactDOM.render(
 
 /* game helpers */
 
-function hasEnoughSpace(coords, length) {
-  let enoughSpace = true
+function findAdjacentNodes(coords) {
+  let adjacentNodes = []
   const x = parseInt(coords[0])
   const y = parseInt(coords[2])
-  for (let i = 1; i < length; i++) {
-    const node = document.querySelector(`[data-coords='${x+i},${y}']`)
-    console.log(node)
+  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y+1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y-1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x},${y+1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x},${y-1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y+1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y-1}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y}']`))
+  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y}']`))
+  return adjacentNodes
+}
+
+function hasEnoughSpace(coords, length, orientation = 'horizontal') {
+  let enoughSpace = true
+  let adjacentNodes = findAdjacentNodes(coords)
+  const x = parseInt(coords[0])
+  const y = parseInt(coords[2])
+  const parentNode = document.querySelector(`[data-coords='${x},${y}']`)
+  adjacentNodes.forEach (node => {
+    if (node === null || (!node.classList.contains('empty') && node.classList[1] !== parentNode.classList[1])) {
+      enoughSpace = false
+    }
+  })
+  for (let i = 1; i < length; i++){
+    let node; 
+    node = document.querySelector(`[data-coords='${x},${y-i}']`)
+    if (orientation === 'horizontal') {
+    node = document.querySelector(`[data-coords='${x+i},${y}']`)
+    }
     if (node === null || !node.classList.contains('empty')) {
       enoughSpace = false
       break
     }
   }
-  console.log(enoughSpace)
   return enoughSpace
 }
 
@@ -146,5 +159,29 @@ function changeShipOrientation(e) {
   const name = e.target.dataset.name
   if (hasEnoughSpace(coords, length)) {
     removeOldShipSpaces(name)
+    placeShip(name, length, coords, 'horizontal')
+  }
+}
+
+function placeShip(name, length, coords, orientation) {
+  for (let i = 0; i < length; i++) {
+    let x;
+    let y;
+    if (orientation === 'vertical') {
+    x = parseInt(coords[0])
+    y = parseInt(coords[2]) - i
+    } else {
+      x = parseInt(coords[0]) + i
+      y = parseInt(coords[2])
+    }
+    const node = document.querySelector(`[data-coords='${x},${y}']`)
+    node.classList.add(`${name}`)
+    node.classList.remove('empty')
+    if (i === 0) {
+      node.dataset.length = length
+      node.dataset.orientation = orientation
+      node.dataset.name = name
+      node.addEventListener('click', changeShipOrientation)
+    }
   }
 }
