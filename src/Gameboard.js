@@ -16,8 +16,8 @@ const board_proto = {
     }
     if ( this.shipAt(coords) ) {
       this.shipAt(coords).hit(this.shipPart(coords))
+      return true
     }
-    return true
   },
   placeShip(shipName, coords, orientation) {
     if (this.placedShips.includes(shipName)) return 'Ship has already been placed'
