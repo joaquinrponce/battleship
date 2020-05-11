@@ -11,22 +11,28 @@ class Square extends React.Component {
 }
 
 class Board extends React.Component {
-  allowDrop(e){
-    e.preventDefault();
+  constructor(props) {
+    super(props)
+    this.state = {ships: []}
+    this.dropHandler = this.dropHandler.bind(this)
   }
+
   makeSquare(coords) {
     return <Square key={coords} coords={coords}/>
   }
+
+  allowDrop(e){
+    e.preventDefault();
+  }
+
   dropHandler(e) {
     const length = e.dataTransfer.getData('length')
     const name = e.dataTransfer.getData('name')
     const coords = e.target.dataset.coords
-    if ( hasEnoughSpace(coords, length, 'vertical') ) {
-      placeShip(name, length, coords, 'vertical')
-      document.getElementById(name).draggable = false
-      document.getElementById(name).style.opacity = 0
-    }
+    const targetSpace = document.querySelector(`[data-coords='${coords[0]},${coords[2]}']`)
+    this.props.processShip(name, coords, length, 'vertical', targetSpace)
   }
+
   render () {
     let squares = []
     for (let i = 9; i >= 0; i--) {
@@ -62,8 +68,19 @@ class Ship extends React.Component {
 }
 
 class Game extends React.Component {
-  renderBoard() {
+  constructor(props) {
+    super(props)
+    this.state = {ships: [], gameStart: false}
+    this.startGame = this.startGame.bind(this)
+    this.changeShipOrientation = this.changeShipOrientation.bind(this)
+    this.processShip = this.processShip.bind(this)
+  }
+  renderBoard(callback) {
+    if (callback) {
+      return <Board processShip={callback} />
+    } else {
     return <Board />
+    }
   }
   renderShips() {
     let shipRows = []
@@ -84,14 +101,126 @@ class Game extends React.Component {
     )
     return shipRows
   }
+  startGame() {
+    this.setState({gameStart: true})
+  }
+
+  findAdjacentNodes(coords) {
+    let adjacentNodes = []
+    const x = parseInt(coords[0])
+    const y = parseInt(coords[2])
+    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y+1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y-1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x},${y+1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x},${y-1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y+1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y-1}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y}']`))
+    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y}']`))
+    return adjacentNodes
+    }
+  
+  hasEnoughSpace(coords, length, orientation = 'horizontal') {
+    let enoughSpace = true
+    let adjacentNodes = this.findAdjacentNodes(coords)
+    const x = parseInt(coords[0])
+    const y = parseInt(coords[2])
+    const parentNode = document.querySelector(`[data-coords='${x},${y}']`)
+    adjacentNodes.forEach (node => {
+      if (node === null) return
+      if ((!node.classList.contains('empty') && node.classList[1] !== parentNode.classList[1])) {
+        console.log(node)
+        enoughSpace = false
+      }
+    })
+    for (let i = 0; i < length; i++){
+      let node; 
+      node = document.querySelector(`[data-coords='${x},${y-i}']`)
+      if (orientation === 'horizontal') {
+      node = document.querySelector(`[data-coords='${x+i},${y}']`)
+      }
+      if (node === null || (node !== parentNode && !node.classList.contains('empty'))) {
+        enoughSpace = false
+        break
+      }
+    }
+    return enoughSpace
+    }
+  
+  removeOldShipSpaces(name) {
+    const nodes = document.querySelectorAll(`.${name}`)
+      nodes.forEach(node => {
+        node.classList.remove(`${name}`)
+        node.classList.add('empty')
+      })
+  
+    }
+  
+  placeAllShips () {
+    this.state.ships.forEach(ship => {
+      this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
+    })
+    console.log(this.state.ships)
+  }
+  
+  changeShipOrientation(e) {
+    const coords = e.target.dataset.coords
+    const length = e.target.dataset.length
+    const name = e.target.dataset.name
+    if (this.hasEnoughSpace(coords, length)) {
+      const placedShips = this.state.ships
+      const ship = placedShips.find(ship => {
+        return ship.name === name
+       })
+      const newShips = placedShips.filter(shippy => shippy !== ship)
+      this.removeOldShipSpaces(name)
+       newShips.push({name: name, length: length, coords: coords, orientation: 'horizontal'})
+      this.setState({ships: newShips}, this.placeAllShips)
+    }
+  }
+  
+  placeShip(name, length, coords, orientation) {
+    for (let i = 0; i < length; i++) {
+      let x;
+      let y;
+       if (orientation === 'vertical') {
+       x = parseInt(coords[0])
+       y = parseInt(coords[2]) - i
+       } else {
+          x = parseInt(coords[0]) + i
+          y = parseInt(coords[2])
+        }
+        const node = document.querySelector(`[data-coords='${x},${y}']`)
+        node.classList.add(`${name}`)
+        node.classList.remove('empty')
+        if (i === 0) {
+          node.dataset.length = length
+          node.dataset.orientation = orientation
+          node.dataset.name = name
+          node.addEventListener('click', this.changeShipOrientation)
+        }
+      }
+    }
+
+  processShip(name, coords, length, orientation, targetSpace) {
+    if ( this.hasEnoughSpace(coords, length, 'vertical') && targetSpace.classList.contains('empty')) {
+      const placedShips = this.state.ships
+      placedShips.push({name: name, length: length, coords: coords, orientation: orientation})
+      this.setState({ships: placedShips}, this.placeAllShips)
+      document.getElementById(name).draggable = false
+      document.getElementById(name).style.opacity = 0
+    }
+  }
   render () {
     return (
       <div className='container-main'>
       <div className='header'>Place your ships!</div>
       <div className='container-board'>
-      <div className='playerBoard'>{this.renderBoard()}</div>
-      <div className='placeShips'>{this.renderShips()}</div>
+      <div className='playerBoard'>{this.renderBoard(this.processShip)}</div>
+      { this.state.gameStart === true && <div className='enemyBoard'>{this.renderBoard()}</div> }
+      { this.state.gameStart === false && <div className='placeShips'>{this.renderShips()}</div> }
       </div>
+      <button type='button' onClick={this.startGame}>Starto</button>
       </div>
     )
   }
@@ -104,84 +233,5 @@ ReactDOM.render(
 
 /* game helpers */
 
-function findAdjacentNodes(coords) {
-  let adjacentNodes = []
-  const x = parseInt(coords[0])
-  const y = parseInt(coords[2])
-  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y+1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y-1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x},${y+1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x},${y-1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y+1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y-1}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y}']`))
-  adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y}']`))
-  return adjacentNodes
-}
 
-function hasEnoughSpace(coords, length, orientation = 'horizontal') {
-  let enoughSpace = true
-  let adjacentNodes = findAdjacentNodes(coords)
-  const x = parseInt(coords[0])
-  const y = parseInt(coords[2])
-  const parentNode = document.querySelector(`[data-coords='${x},${y}']`)
-  adjacentNodes.forEach (node => {
-    if (node === null || (!node.classList.contains('empty') && node.classList[1] !== parentNode.classList[1])) {
-      enoughSpace = false
-    }
-  })
-  for (let i = 1; i < length; i++){
-    let node; 
-    node = document.querySelector(`[data-coords='${x},${y-i}']`)
-    if (orientation === 'horizontal') {
-    node = document.querySelector(`[data-coords='${x+i},${y}']`)
-    }
-    if (node === null || !node.classList.contains('empty')) {
-      enoughSpace = false
-      break
-    }
-  }
-  return enoughSpace
-}
 
-function removeOldShipSpaces(name) {
-  const nodes = document.querySelectorAll(`.${name}`)
-    nodes.forEach(node => {
-      node.classList.remove(`${name}`)
-      node.classList.add('empty')
-    })
-
-}
-
-function changeShipOrientation(e) {
-  const coords = e.target.dataset.coords
-  const length = e.target.dataset.length
-  const name = e.target.dataset.name
-  if (hasEnoughSpace(coords, length)) {
-    removeOldShipSpaces(name)
-    placeShip(name, length, coords, 'horizontal')
-  }
-}
-
-function placeShip(name, length, coords, orientation) {
-  for (let i = 0; i < length; i++) {
-    let x;
-    let y;
-    if (orientation === 'vertical') {
-    x = parseInt(coords[0])
-    y = parseInt(coords[2]) - i
-    } else {
-      x = parseInt(coords[0]) + i
-      y = parseInt(coords[2])
-    }
-    const node = document.querySelector(`[data-coords='${x},${y}']`)
-    node.classList.add(`${name}`)
-    node.classList.remove('empty')
-    if (i === 0) {
-      node.dataset.length = length
-      node.dataset.orientation = orientation
-      node.dataset.name = name
-      node.addEventListener('click', changeShipOrientation)
-    }
-  }
-}
