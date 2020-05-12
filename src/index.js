@@ -1,11 +1,34 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
+import Gameboard from './Gameboard.js'
 
 class Square extends React.Component {
   render () {
     return (
-      <div className='square empty' data-coords={this.props.coords}></div>
+      <div className='square empty' data-coords={this.props.coords} onClick={this.props.handleClick}></div>
+    )
+  }
+}
+
+class EnemyBoard extends React.Component {
+  handleClick(e) {
+    e.target.style.background = 'red'
+  }
+
+  makeSquare(coords) {
+    return <Square key={coords} coords={coords} handleClick={this.handleClick}/>
+  }
+
+  render () {
+    let squares = []
+    for (let i = 9; i >= 0; i--) {
+      for (let j = 0; j <= 9; j++) {
+        squares.push(this.makeSquare([j, i]))
+      }
+    }
+    return (
+      <div className='board' onDragOver={this.allowDrop} onDrop={this.dropHandler}>{squares}</div>
     )
   }
 }
@@ -13,8 +36,9 @@ class Square extends React.Component {
 class Board extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {ships: []}
+    this.state = {ships: this.props.ships}
     this.dropHandler = this.dropHandler.bind(this)
+    this.changeShipOrientation = this.changeShipOrientation.bind(this)
   }
 
   makeSquare(coords) {
@@ -30,79 +54,13 @@ class Board extends React.Component {
     const name = e.dataTransfer.getData('name')
     const coords = e.target.dataset.coords
     const targetSpace = document.querySelector(`[data-coords='${coords[0]},${coords[2]}']`)
-    this.props.processShip(name, coords, length, 'vertical', targetSpace)
-  }
-
-  render () {
-    let squares = []
-    for (let i = 9; i >= 0; i--) {
-      for (let j = 0; j <= 9; j++) {
-        squares.push(this.makeSquare([j, i]))
-      }
+    if ( this.hasEnoughSpace(coords, length, 'vertical') && targetSpace.classList.contains('empty')) {
+      const placedShips = this.state.ships
+      placedShips.push({name: name, coords: coords, length: length, orientation: 'vertical'})
+      this.props.updateShips(placedShips)
+      document.getElementById(name).draggable = false
+      document.getElementById(name).style.opacity = 0
     }
-    return (
-      <div className='board' onDragOver={this.allowDrop} onDrop={this.dropHandler}>{squares}</div>
-    )
-}
-}
-
-class Ship extends React.Component {
-  drag(e) {
-    e.dataTransfer.setData("length", e.target.dataset.size);
-    e.dataTransfer.setData("name", e.target.id);
-  }
-  renderSquares(i) {
-    let squares = []
-    for (let j = 0; j < i; j++) {
-      squares.push(<Square key={j}/>)
-    }
-    return squares
-  }
-  render () {
-    return (
-      <div className='ship' id={this.props.name} data-size={this.props.size} draggable='true' onDragStart={this.drag}>
-        {this.renderSquares(this.props.size)}
-      </div>
-    )
-  }
-}
-
-class Game extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = {ships: [], gameStart: false}
-    this.startGame = this.startGame.bind(this)
-    this.changeShipOrientation = this.changeShipOrientation.bind(this)
-    this.processShip = this.processShip.bind(this)
-  }
-  renderBoard(callback) {
-    if (callback) {
-      return <Board processShip={callback} />
-    } else {
-    return <Board />
-    }
-  }
-  renderShips() {
-    let shipRows = []
-    shipRows.push(
-      <Ship key='destroyer' name='destroyer' size={2}/>
-    )
-    shipRows.push(
-      <Ship key='submarine' name='submarine' size={3}/>
-    )
-    shipRows.push(
-      <Ship key='cruiser' name='cruiser' size={3}/>
-    )
-    shipRows.push(
-      <Ship key='battleship' name='battleship' size={4}/>
-    )
-    shipRows.push(
-      <Ship key='carrier' name='carrier' size={5}/>
-    )
-    return shipRows
-  }
-  startGame() {
-    this.setState({gameStart: true})
   }
 
   findAdjacentNodes(coords) {
@@ -163,6 +121,13 @@ class Game extends React.Component {
     console.log(this.state.ships)
   }
   
+  componentDidUpdate () {
+    this.state.ships.forEach(ship => {
+      this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
+    })
+    console.log(this.state.ships)
+  }
+
   changeShipOrientation(e) {
     const coords = e.target.dataset.coords
     const length = e.target.dataset.length
@@ -175,10 +140,10 @@ class Game extends React.Component {
       const newShips = placedShips.filter(shippy => shippy !== ship)
       this.removeOldShipSpaces(name)
        newShips.push({name: name, length: length, coords: coords, orientation: 'horizontal'})
-      this.setState({ships: newShips}, this.placeAllShips)
+      this.props.updateShips(newShips)
     }
   }
-  
+
   placeShip(name, length, coords, orientation) {
     for (let i = 0; i < length; i++) {
       let x;
@@ -202,28 +167,102 @@ class Game extends React.Component {
       }
     }
 
-  processShip(name, coords, length, orientation, targetSpace) {
-    if ( this.hasEnoughSpace(coords, length, 'vertical') && targetSpace.classList.contains('empty')) {
-      const placedShips = this.state.ships
-      placedShips.push({name: name, length: length, coords: coords, orientation: orientation})
-      this.setState({ships: placedShips}, this.placeAllShips)
-      document.getElementById(name).draggable = false
-      document.getElementById(name).style.opacity = 0
+  componentDidMount() {
+    this.placeAllShips()
+  }
+
+  render () {
+    let squares = []
+    for (let i = 9; i >= 0; i--) {
+      for (let j = 0; j <= 9; j++) {
+        squares.push(this.makeSquare([j, i]))
+      }
+    }
+    return (
+      <div className='board' onDragOver={this.allowDrop} onDrop={this.dropHandler}>{squares}</div>
+    )
+}
+}
+
+class Ship extends React.Component {
+  drag(e) {
+    e.dataTransfer.setData("length", e.target.dataset.size);
+    e.dataTransfer.setData("name", e.target.id);
+  }
+  renderSquares(i) {
+    let squares = []
+    for (let j = 0; j < i; j++) {
+      squares.push(<Square key={j}/>)
+    }
+    return squares
+  }
+  render () {
+    return (
+      <div className='ship' id={this.props.name} data-size={this.props.size} draggable='true' onDragStart={this.drag}>
+        {this.renderSquares(this.props.size)}
+      </div>
+    )
+  }
+}
+
+class Game extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = {ships: [], gameStart: false}
+    this.startGame = this.startGame.bind(this)
+    this.updateShips = this.updateShips.bind(this)
+  }
+  renderBoard(callback) {
+    if (callback) {
+      return <Board updateShips={callback} ships={this.state.ships}/>
+    } else {
+    return <Board ships={this.state.ships} placeShips={this.placeAllShips} />
     }
   }
+  renderShips() {
+    let shipRows = []
+    shipRows.push(
+      <Ship key='destroyer' name='destroyer' size={2}/>
+    )
+    shipRows.push(
+      <Ship key='submarine' name='submarine' size={3}/>
+    )
+    shipRows.push(
+      <Ship key='cruiser' name='cruiser' size={3}/>
+    )
+    shipRows.push(
+      <Ship key='battleship' name='battleship' size={4}/>
+    )
+    shipRows.push(
+      <Ship key='carrier' name='carrier' size={5}/>
+    )
+    return shipRows
+  }
+  startGame() {
+    this.setState({gameStart: true})
+  }
+
+
+  updateShips(ships) {
+      const newState = {ships: ships, gameStart: this.state.gameStart}
+      this.setState(newState)
+  }
+
   render () {
     return (
       <div className='container-main'>
       <div className='header'>Place your ships!</div>
       <div className='container-board'>
-      <div className='playerBoard'>{this.renderBoard(this.processShip)}</div>
-      { this.state.gameStart === true && <div className='enemyBoard'>{this.renderBoard()}</div> }
-      { this.state.gameStart === false && <div className='placeShips'>{this.renderShips()}</div> }
+      { this.state.gameStart === false && <div className='playerBoard'>{this.renderBoard(this.updateShips)}</div> }
+      { this.state.gameStart === true && <div className='playerBoard'>{this.renderBoard()}</div> }
+      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard /></div> }
+      { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
       </div>
-      <button type='button' onClick={this.startGame}>Starto</button>
+      <button type='button' onClick={this.startGame}>Start Game</button>
       </div>
     )
   }
+
 }
 
 ReactDOM.render(
