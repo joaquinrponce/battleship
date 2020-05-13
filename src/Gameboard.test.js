@@ -17,14 +17,14 @@ test('board contains one of each ship', () => {
 })
 
 test('correctly identifies vertical ship at coordinates', () => {
-  expect(testBoard.shipAt([3, 5])).toStrictEqual(testBoard.ships.destroyer)
-  expect(testBoard.shipAt([3, 6])).toStrictEqual(testBoard.ships.destroyer)
+  expect(testBoard.shipAt([3,5])).toStrictEqual(testBoard.ships.destroyer)
+  expect(testBoard.shipAt([3,4])).toStrictEqual(testBoard.ships.destroyer)
 })
 
 test('correctly identifies horizontal ship at coordinates', () => {
-  expect(testBoard.shipAt([7, 2])).toStrictEqual(testBoard.ships.submarine)
-  expect(testBoard.shipAt([8, 2])).toStrictEqual(testBoard.ships.submarine)
-  expect(testBoard.shipAt([9, 2])).toStrictEqual(testBoard.ships.submarine)
+  expect(testBoard.shipAt([7,2])).toStrictEqual(testBoard.ships.submarine)
+  expect(testBoard.shipAt([8,2])).toStrictEqual(testBoard.ships.submarine)
+  expect(testBoard.shipAt([9,2])).toStrictEqual(testBoard.ships.submarine)
 })
 
 test('receives an attack with coords and marks ship hit on spot', () => {
@@ -33,11 +33,11 @@ test('receives an attack with coords and marks ship hit on spot', () => {
 })
 
 test('does not allow to place a ship vertically beyond max range', () => {
-  expect(testBoard.placeShip('carrier', [0, 6], 'vertical')).toBe('Ship must be placed within the 10 by 10 grid')
+  expect(testBoard.placeShip('carrier', [0, 4], 'vertical')).toBe('Ship must be placed within the 10 by 10 grid')
 })
 
 test('does not allow to place a ship horizontally beyond max range', () => {
-  expect(testBoard.placeShip('carrier', [6, 0], 'horizontal')).toBe('Ship must be placed within the 10 by 10 grid')
+  expect(testBoard.placeShip('carrier', [4, 0], 'horizontal')).toBe('Ship must be placed within the 10 by 10 grid')
 })
 
 test('does not allow to replace a ship', () => {

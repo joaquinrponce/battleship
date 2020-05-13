@@ -18,25 +18,32 @@ const board_proto = {
       this.shipAt(coords).hit(this.shipPart(coords))
       return true
     }
+    return false
   },
   placeShip(shipName, coords, orientation) {
+    let shipWasPlaced = false;
     if (this.placedShips.includes(shipName)) return 'Ship has already been placed'
     if (this.positions[coords] !== undefined) return 'A ship is already in that spot'
-    this.placedShips.push(shipName)
     const ship = this.ships[shipName]
     for (let i = 0; i < ship.length; i++) {
       if (orientation === 'vertical') {
-        if ( 10 - coords[1] < ship.length) return 'Ship must be placed within the 10 by 10 grid'
-        let coordsName = [coords[0], coords[1] + i]
+        if ( coords[1] - ship.length < 0 ) return 'Ship must be placed within the 10 by 10 grid'
+        let coordsName = [parseInt(coords[0]), parseInt(coords[1]) - i]
         this.positions[coordsName] = { ship: ship, part: [i]}
+        this.placedShips.push(shipName)
+        shipWasPlaced = true;
       } else {
-        if ( 10 - coords[0] < ship.length) return 'Ship must be placed within the 10 by 10 grid'
-        let coordsName = [coords[0] + i, coords[1]]
+        if ( coords[0] - ship.length < 0 ) return 'Ship must be placed within the 10 by 10 grid'
+        let coordsName = [parseInt(coords[0]) + i, parseInt(coords[1])]
         this.positions[coordsName] = { ship: ship, part: [i]}
+        this.placedShips.push(shipName)
+        shipWasPlaced = true
       }
     }
+    return shipWasPlaced
   },
   shipAt(coords) {
+    if (this.positions[coords] === undefined) return
     return this.positions[coords].ship
   },
   shipPart(coords) {

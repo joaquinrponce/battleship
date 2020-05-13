@@ -12,8 +12,26 @@ class Square extends React.Component {
 }
 
 class EnemyBoard extends React.Component {
+  constructor(props) {
+    super(props)
+    this.handleClick = this.handleClick.bind(this)
+  }
+
   handleClick(e) {
-    e.target.style.background = 'red'
+    if (e.target.textContent === 'X' ) return
+    if ( this.props.turn === 'player') {
+    const coords = e.target.dataset.coords
+    const sanitizedCoords = [coords[0], coords[2]]
+    if (this.props.board.receiveAttack(sanitizedCoords) === true) {
+      e.target.textContent = 'X'
+      e.target.style.color = 'red'
+      e.target.style.background = 'blue'
+      this.props.hitNotifier('player', this.props.board)
+    } else {
+      e.target.style.background = 'grey'
+      this.props.hitNotifier('computer', this.props.board)
+      }
+    }
   }
 
   makeSquare(coords) {
@@ -55,7 +73,7 @@ class Board extends React.Component {
     const coords = e.target.dataset.coords
     const targetSpace = document.querySelector(`[data-coords='${coords[0]},${coords[2]}']`)
     if ( this.hasEnoughSpace(coords, length, 'vertical') && targetSpace.classList.contains('empty')) {
-      const placedShips = this.state.ships
+      const placedShips = JSON.parse(JSON.stringify(this.props.ships))
       placedShips.push({name: name, coords: coords, length: length, orientation: 'vertical'})
       this.props.updateShips(placedShips)
       document.getElementById(name).draggable = false
@@ -87,7 +105,6 @@ class Board extends React.Component {
     adjacentNodes.forEach (node => {
       if (node === null) return
       if ((!node.classList.contains('empty') && node.classList[1] !== parentNode.classList[1])) {
-        console.log(node)
         enoughSpace = false
       }
     })
@@ -115,17 +132,17 @@ class Board extends React.Component {
     }
   
   placeAllShips () {
-    this.state.ships.forEach(ship => {
+    this.props.ships.forEach(ship => {
       this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
     })
-    console.log(this.state.ships)
   }
   
-  componentDidUpdate () {
-    this.state.ships.forEach(ship => {
+  componentDidUpdate (prevProps, prevState) {
+    if (prevProps.ships !== this.props.ships) {
+    this.props.ships.forEach(ship => {
       this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
     })
-    console.log(this.state.ships)
+  }
   }
 
   changeShipOrientation(e) {
@@ -133,7 +150,7 @@ class Board extends React.Component {
     const length = e.target.dataset.length
     const name = e.target.dataset.name
     if (this.hasEnoughSpace(coords, length)) {
-      const placedShips = this.state.ships
+      const placedShips = this.props.ships
       const ship = placedShips.find(ship => {
         return ship.name === name
        })
@@ -211,7 +228,9 @@ class Game extends React.Component {
     this.state = {ships: [], gameStart: false}
     this.startGame = this.startGame.bind(this)
     this.updateShips = this.updateShips.bind(this)
+    this.hitNotifier = this.hitNotifier.bind(this)
   }
+
   renderBoard(callback) {
     if (callback) {
       return <Board updateShips={callback} ships={this.state.ships}/>
@@ -219,6 +238,7 @@ class Game extends React.Component {
     return <Board ships={this.state.ships} placeShips={this.placeAllShips} />
     }
   }
+
   renderShips() {
     let shipRows = []
     shipRows.push(
@@ -237,15 +257,90 @@ class Game extends React.Component {
       <Ship key='carrier' name='carrier' size={5}/>
     )
     return shipRows
-  }
-  startGame() {
-    this.setState({gameStart: true})
+
   }
 
+  makeRandomCoords() {
+    const coords = []
+    coords[0] = Math.floor(Math.random() * 10)
+    coords[1] = Math.floor(Math.random() * 10)
+    return coords
+  }
+
+  makeRandomOrientation() {
+    if (Math.floor(Math.random() * 11) < 5) {
+      return 'horizontal'
+    } else {
+      return 'vertical'
+    }
+  }
+
+  makeComputerBoard() {
+    const names = ['destroyer', 'submarine', 'cruiser', 'battleship', 'carrier']
+    const computerBoard = Gameboard.createBoard()
+    names.forEach(name => {
+      let shipIsNotPlaced = true
+      while (shipIsNotPlaced) {
+        if (computerBoard.placeShip(name, this.makeRandomCoords(), this.makeRandomOrientation()) === true) {
+          shipIsNotPlaced = false
+        }
+      }
+    })
+    return computerBoard
+  }
+
+  startGame() {
+    if (this.state.ships.length !== 5) {
+      alert('You must place all your ships first!')
+      return
+    }
+    const playerBoard = Gameboard.createBoard()
+    this.state.ships.forEach( ship => {
+      let saneCoords = [ship.coords[0], ship.coords[2]]
+      if (playerBoard.placeShip(ship.name, saneCoords, ship.orientation) !== true) {
+        console.log(ship.name, saneCoords, ship.orientation)
+        console.log(playerBoard.placeShip(ship.name, saneCoords, ship.orientation))
+      }
+    })
+    const computerBoard = this.makeComputerBoard()
+    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player'})
+  }
 
   updateShips(ships) {
-      const newState = {ships: ships, gameStart: this.state.gameStart}
+      this.setState({ships: ships, gameStart: this.state.gameStart})
+  }
+
+  computerTurn() {
+    const coords = this.makeRandomCoords()
+    if (this.state.playerBoard.receiveAttack(coords) === true) {
+      console.log(coords)
+      console.log(this.state.playerBoard.positions)
+      const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
+      cell.textContent = 'X'
+      cell.style.color = 'red'
+      this.hitNotifier('computer', this.state.computerBoard)
+    } else {
+    const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
+    cell.style.background = 'grey'
+    this.hitNotifier('player', this.state.computerBoard)
+    }
+  }
+
+  hitNotifier(turn, enemyBoard) {
+    if ( enemyBoard.areAllShipsSunk() ) {
+      alert('Gratsaroni pepperoni')
+      this.setState({ships: [], gameStart: false})
+      return
+    }
+    const newState = JSON.parse(JSON.stringify(this.state))
+    newState.playerBoard = this.state.playerBoard
+    newState.computerBoard = enemyBoard
+    newState.turn = turn
+    if (turn === 'computer') {
+    this.setState(newState, this.computerTurn)
+    } else {
       this.setState(newState)
+    }
   }
 
   render () {
@@ -255,7 +350,7 @@ class Game extends React.Component {
       <div className='container-board'>
       { this.state.gameStart === false && <div className='playerBoard'>{this.renderBoard(this.updateShips)}</div> }
       { this.state.gameStart === true && <div className='playerBoard'>{this.renderBoard()}</div> }
-      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard /></div> }
+      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn}/></div> }
       { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
       </div>
       <button type='button' onClick={this.startGame}>Start Game</button>
