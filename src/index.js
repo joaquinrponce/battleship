@@ -18,17 +18,15 @@ class EnemyBoard extends React.Component {
   }
 
   handleClick(e) {
-    if (e.target.textContent === 'X' ) return
+    if (e.target.classList.contains('clicked') || e.target.classList.contains('hit')) return
     if ( this.props.turn === 'player') {
     const coords = e.target.dataset.coords
     const sanitizedCoords = [coords[0], coords[2]]
     if (this.props.board.receiveAttack(sanitizedCoords) === true) {
-      e.target.textContent = 'X'
-      e.target.style.color = 'red'
-      e.target.style.background = 'blue'
+      e.target.classList.add('hit')
       this.props.hitNotifier('player', this.props.board)
     } else {
-      e.target.style.background = 'grey'
+      e.target.classList.add('clicked')
       this.props.hitNotifier('computer', this.props.board)
       }
     }
@@ -46,7 +44,7 @@ class EnemyBoard extends React.Component {
       }
     }
     return (
-      <div className='board' onDragOver={this.allowDrop} onDrop={this.dropHandler}>{squares}</div>
+      <div className='board enemy' onDragOver={this.allowDrop} onDrop={this.dropHandler}>{squares}</div>
     )
   }
 }
@@ -229,6 +227,7 @@ class Game extends React.Component {
     this.startGame = this.startGame.bind(this)
     this.updateShips = this.updateShips.bind(this)
     this.hitNotifier = this.hitNotifier.bind(this)
+    this.checkForVictory = this.checkForVictory.bind(this)
   }
 
   renderBoard(callback) {
@@ -303,41 +302,57 @@ class Game extends React.Component {
       }
     })
     const computerBoard = this.makeComputerBoard()
-    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player'})
+    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: []})
   }
 
   updateShips(ships) {
       this.setState({ships: ships, gameStart: this.state.gameStart})
   }
 
+  containsAttempt(attempts, coords) {
+    return attempts.some(attempt => {
+      if (attempt === undefined || attempt === null) return false
+      return attempt[0] === coords[0] && attempt[1] === coords[1]
+    })
+  }
+
   computerTurn() {
-    const coords = this.makeRandomCoords()
-    if (this.state.playerBoard.receiveAttack(coords) === true) {
+    let coords = this.makeRandomCoords()
+    console.log(coords, this.state.computerAttempts)
+    while (this.containsAttempt(this.state.computerAttempts, coords)) {
+      console.log('redoing coords')
       console.log(coords)
-      console.log(this.state.playerBoard.positions)
+      coords = this.makeRandomCoords()
+    }
+    if (this.state.playerBoard.receiveAttack(coords) === true) {
       const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
-      cell.textContent = 'X'
-      cell.style.color = 'red'
-      this.hitNotifier('computer', this.state.computerBoard)
+      cell.classList.add('hit')
+      this.hitNotifier('computer', this.state.computerBoard, coords)
     } else {
     const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
-    cell.style.background = 'grey'
-    this.hitNotifier('player', this.state.computerBoard)
+    cell.classList.add('clicked')
+    this.hitNotifier('player', this.state.computerBoard, coords)
     }
   }
 
-  hitNotifier(turn, enemyBoard) {
-    if ( enemyBoard.areAllShipsSunk() ) {
-      alert('Gratsaroni pepperoni')
-      this.setState({ships: [], gameStart: false})
-      return
+  checkForVictory() {
+    if (this.state.computerBoard.areAllShipsSunk()) {
+      alert('you won')
     }
+  }
+
+  componentDidMount
+
+  hitNotifier(turn, enemyBoard, coords = false) {
     const newState = JSON.parse(JSON.stringify(this.state))
     newState.playerBoard = this.state.playerBoard
     newState.computerBoard = enemyBoard
     newState.turn = turn
+    if (coords) {
+      newState.computerAttempts.push(coords)
+    }
     if (turn === 'computer') {
-    this.setState(newState, this.computerTurn)
+    setTimeout(() => {this.setState(newState, this.computerTurn)}, 500)
     } else {
       this.setState(newState)
     }
@@ -350,7 +365,7 @@ class Game extends React.Component {
       <div className='container-board'>
       { this.state.gameStart === false && <div className='playerBoard'>{this.renderBoard(this.updateShips)}</div> }
       { this.state.gameStart === true && <div className='playerBoard'>{this.renderBoard()}</div> }
-      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn}/></div> }
+      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} checkForVictory={this.checkForVictory}/></div> }
       { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
       </div>
       <button type='button' onClick={this.startGame}>Start Game</button>

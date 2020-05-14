@@ -76,7 +76,7 @@ table {
 }
 
 .submarine, .destroyer, .carrier, .battleship, .cruiser {
-  background-color: rgba(28, 152, 253, .8);
+  background-color: rgba(0, 214, 114, 0.8);
 }
 
 
@@ -94,4 +94,28 @@ table {
   height: 35px;
   width: 35px;
   border: 1px solid black;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 10pt;
+  transition: background .2s;
+}
+
+.clicked {
+  background: rgb(165, 211, 255);
+}
+
+.clicked:after {
+  content: ' \25CF';
+}
+
+.hit {
+  background: rgb(255, 52, 52);
+  color: rgb(255, 200, 21);
+}
+
+.enemy .square:hover {
+  border: 1px solid red;
+  transform: scale(1.1)
 }

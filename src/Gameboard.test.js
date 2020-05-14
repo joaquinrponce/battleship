@@ -33,11 +33,11 @@ test('receives an attack with coords and marks ship hit on spot', () => {
 })
 
 test('does not allow to place a ship vertically beyond max range', () => {
-  expect(testBoard.placeShip('carrier', [0, 4], 'vertical')).toBe('Ship must be placed within the 10 by 10 grid')
+  expect(testBoard.placeShip('carrier', [0, 2], 'vertical')).toBe('Ship must be placed within the 10 by 10 grid')
 })
 
 test('does not allow to place a ship horizontally beyond max range', () => {
-  expect(testBoard.placeShip('carrier', [4, 0], 'horizontal')).toBe('Ship must be placed within the 10 by 10 grid')
+  expect(testBoard.placeShip('carrier', [6, 0], 'horizontal')).toBe('Ship must be placed within the 10 by 10 grid')
 })
 
 test('does not allow to replace a ship', () => {

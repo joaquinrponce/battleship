@@ -22,26 +22,41 @@ const board_proto = {
   },
   placeShip(shipName, coords, orientation) {
     let shipWasPlaced = false;
-    if (this.placedShips.includes(shipName)) return 'Ship has already been placed'
-    if (this.positions[coords] !== undefined) return 'A ship is already in that spot'
+    let shipIsPlaceable = true;
     const ship = this.ships[shipName]
+    const coordsToPlace = []
+    if (this.placedShips.includes(shipName)) return 'Ship has already been placed'
+    if ( coords[1] - (ship.length - 1) < 0 && orientation === 'vertical') return 'Ship must be placed within the 10 by 10 grid'
+    if ( 10 - coords[0] < ship.length && orientation === 'horizontal' ) return 'Ship must be placed within the 10 by 10 grid'
+    if ( this.positions[coords] !== undefined) return 'A ship is already in that spot'
     for (let i = 0; i < ship.length; i++) {
+      let coordsName = []
       if (orientation === 'vertical') {
-        if ( coords[1] - ship.length < 0 ) return 'Ship must be placed within the 10 by 10 grid'
-        let coordsName = [parseInt(coords[0]), parseInt(coords[1]) - i]
-        this.positions[coordsName] = { ship: ship, part: [i]}
+      coordsName = [parseInt(coords[0]), parseInt(coords[1]) - i]
+      } else {
+        coordsName = [parseInt(coords[0]) + i, parseInt(coords[1])]
+      }
+      if (this.positions[coordsName] !== undefined) {
+        shipIsPlaceable = false
+      }
+      coordsToPlace.push(coordsName)
+    }
+    if (shipIsPlaceable) {
+    coordsToPlace.forEach(coordSet => {
+      if (orientation === 'vertical') {
+        this.positions[coordSet] = { ship: ship, part: [coordsToPlace.indexOf(coordSet)]}
         this.placedShips.push(shipName)
         shipWasPlaced = true;
       } else {
-        if ( coords[0] - ship.length < 0 ) return 'Ship must be placed within the 10 by 10 grid'
-        let coordsName = [parseInt(coords[0]) + i, parseInt(coords[1])]
-        this.positions[coordsName] = { ship: ship, part: [i]}
+        this.positions[coordSet] = { ship: ship, part: [coordsToPlace.indexOf(coordSet)]}
         this.placedShips.push(shipName)
         shipWasPlaced = true
-      }
-    }
+        }
+    })
+  }
     return shipWasPlaced
   },
+
   shipAt(coords) {
     if (this.positions[coords] === undefined) return
     return this.positions[coords].ship
