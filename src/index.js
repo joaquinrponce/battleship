@@ -134,9 +134,18 @@ class Board extends React.Component {
     })
     for (let i = 1; i < length; i++) {
       let node; 
-      node = [x, y-i]
       if (orientation === 'horizontal') {
+       if (x+i > 9) {
+        enoughSpace = false
+        break
+        }
       node = [x+i, y]
+      } else {
+        if (y-i < 0) {
+          enoughSpace = false
+          break
+        }
+        node = [x, y-i]
       }
       if (arrayContainsCoords(this.props.shipSpaces, node)) {
         enoughSpace = false
