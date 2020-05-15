@@ -50,7 +50,7 @@ class EnemyBoard extends React.Component {
       className = 'square empty clicked'
       clickable = false
     }
-    return <Square className={className} key={coords} clickable={clickable} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack}/>
+    return <Square className={className} key={coords} clickable={clickable} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack} changeOrientation={null}/>
   }
 
   render () {
