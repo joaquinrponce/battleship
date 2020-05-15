@@ -9,9 +9,13 @@ class Square extends React.Component {
     this.handleClick = this.handleClick.bind(this)
   }
 
-  handleClick() {
+  handleClick(e) {
     if (!this.props.clickable) return
+    if (this.props.changeOrientation !== null) {
+      this.props.changeOrientation(e)
+    } else {
     this.props.sendAttack(this.props.coords)
+    }
   }
 
   render () {
@@ -28,11 +32,13 @@ class EnemyBoard extends React.Component {
   }
 
 
+  /* for console debugging
+  
   componentDidUpdate(prevProps, prevState) {
     if (prevProps !== this.props) {
       console.log('updatey!')
     }
-  }
+  } */
 
   makeSquare(coords) {
     let className = 'square empty'
@@ -65,21 +71,27 @@ class Board extends React.Component {
     super(props)
     this.dropHandler = this.dropHandler.bind(this)
     this.changeShipOrientation = this.changeShipOrientation.bind(this)
-    this.state = {shipNodes: []}
   }
 
   makeSquare(coords) {
     let className = 'square empty'
+    let changeOrientation = null
+    let clickable = false
     if (arrayContainsCoords(this.props.hits, coords)) {
-      className = 'square empty hit'
+      className += ' hit'
     } else if (arrayContainsCoords(this.props.misses, coords)) {
-      className = 'square empty clicked'
+      className += ' clicked'
     }
-    return <Square className={className} key={coords} clickable={false} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack}/>
+    if (arrayContainsCoords(this.props.shipSpaces, coords)) {
+      className += ' occupied'
+      changeOrientation = this.changeShipOrientation
+      clickable = true
+    }
+    return <Square className={className} key={coords} clickable={clickable} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack} changeOrientation={changeOrientation}/>
   }
 
   allowDrop(e){
-    e.preventDefault();asdfasdfasdfasdf
+    e.preventDefault();
   }
 
   dropHandler(e) {
@@ -87,13 +99,10 @@ class Board extends React.Component {
     const name = e.dataTransfer.getData('name')
     const sourceCoords = e.target.dataset.coords
     const coords = [parseInt(sourceCoords[0]), parseInt(sourceCoords[2])]
-    const targetSpace = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
-    if ( this.hasEnoughSpace(coords, length, 'vertical') && targetSpace.classList.contains('empty')) {
+    if ( this.hasEnoughSpace(coords, length, 'vertical') && !arrayContainsCoords(this.props.shipSpaces, coords)) {
       const placedShips = JSON.parse(JSON.stringify(this.props.ships))
       placedShips.push({name: name, coords: coords, length: length, orientation: 'vertical'})
       this.props.updateShips(placedShips)
-      document.getElementById(name).draggable = false
-      document.getElementById(name).style.opacity = 0
     }
   }
 
@@ -101,36 +110,35 @@ class Board extends React.Component {
     let adjacentNodes = []
     const x = parseInt(coords[0])
     const y = parseInt(coords[1])
-    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y+1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y-1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x},${y+1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x},${y-1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y+1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y-1}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x-1},${y}']`))
-    adjacentNodes.push(document.querySelector(`[data-coords='${x+1},${y}']`))
+    adjacentNodes = adjacentNodes.concat([[x+1,y+1]])
+    adjacentNodes = adjacentNodes.concat([[x-1,y-1]])
+    adjacentNodes = adjacentNodes.concat([[x,y+1]])
+    adjacentNodes = adjacentNodes.concat([[x,y-1]])
+    adjacentNodes = adjacentNodes.concat([[x-1,y+1]])
+    adjacentNodes = adjacentNodes.concat([[x+1,y-1]])
+    adjacentNodes = adjacentNodes.concat([[x-1,y]])
+    adjacentNodes = adjacentNodes.concat([[x+1,y]])
     return adjacentNodes
   }
   
   hasEnoughSpace(coords, length, orientation = 'horizontal') {
     let enoughSpace = true
     let adjacentNodes = this.findAdjacentNodes(coords)
-    const x = parseInt(coords[0])
-    const y = parseInt(coords[1])
-    const parentNode = document.querySelector(`[data-coords='${x},${y}']`)
+    const x = coords[0]
+    const y = coords[1]
     adjacentNodes.forEach (node => {
       if (node === null) return
-      if ((!node.classList.contains('empty') && node.classList[1] !== parentNode.classList[1])) {
+      if (arrayContainsCoords(this.props.shipSpaces, node) && (node[0] !== coords[0] && node[1] !== coords[1])) {
         enoughSpace = false
       }
     })
-    for (let i = 0; i < length; i++){
+    for (let i = 1; i < length; i++) {
       let node; 
-      node = document.querySelector(`[data-coords='${x},${y-i}']`)
+      node = [x, y-i]
       if (orientation === 'horizontal') {
-      node = document.querySelector(`[data-coords='${x+i},${y}']`)
+      node = [x+i, y]
       }
-      if (node === null || (node !== parentNode && !node.classList.contains('empty'))) {
+      if (arrayContainsCoords(this.props.shipSpaces, node)) {
         enoughSpace = false
         break
       }
@@ -138,68 +146,49 @@ class Board extends React.Component {
     return enoughSpace
   }
   
-  removeOldShipSpaces(name) {
+  /* should not need this removeOldShipSpaces(name) {
     const nodes = document.querySelectorAll(`.${name}`)
       nodes.forEach(node => {
         node.classList.remove(`${name}`)
         node.classList.add('empty')
       })
   
-  }
+  } */
   
+  /* should not need this 
   componentDidUpdate (prevProps, prevState) {
     if (prevProps.ships !== this.props.ships) {
       this.props.ships.forEach(ship => {
         this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
       })
     }
-  }
+  } */
 
   changeShipOrientation(e) {
     const sourceCoords = e.target.dataset.coords
-    const coords = [parseInt(sourceCoords[0]), parseInt(sourceCoords[1])]
-    const length = e.target.dataset.length
-    const name = e.target.dataset.name
-    if (this.hasEnoughSpace(coords, length)) {
+    const coords = [parseInt(sourceCoords[0]), parseInt(sourceCoords[2])]
+    let targetShip = null
+    this.props.ships.forEach(ship => {
+      if (ship.coords[0] === coords[0] && ship.coords[1] === coords[1]) {
+        targetShip = ship
+      }
+    })
+    if (targetShip === null) return
+    const length = targetShip.length
+    const name = targetShip.name
+    if (this.hasEnoughSpace(coords, length, 'horizontal')) {
       const placedShips = this.props.ships
-      const ship = placedShips.find(ship => {
-        return ship.name === name
-       })
-      const newShips = placedShips.filter(shippy => shippy !== ship)
-      this.removeOldShipSpaces(name)
-       newShips.push({name: name, length: length, coords: coords, orientation: 'horizontal'})
+      const newShips = placedShips.filter(ship => ship !== targetShip)
+      newShips.push({name: name, length: length, coords: coords, orientation: 'horizontal'})
       this.props.updateShips(newShips)
     }
   }
 
-  placeShip(name, length, coords, orientation) {
-    for (let i = 0; i < length; i++) {
-      let x;
-      let y;
-      if (orientation === 'vertical') {
-        x = coords[0]
-        y = coords[1] - i
-      } else {
-        x = coords[0] + i
-        y = coords[1]
-      }
-      const node = document.querySelector(`[data-coords='${x},${y}']`)
-      node.classList.add(`${name}`)
-      node.classList.remove('empty')
-      if (i === 0) {
-        node.dataset.length = length
-        node.dataset.orientation = orientation
-        node.dataset.name = name
-        node.addEventListener('click', this.changeShipOrientation)
-      }
-    }
-  }
 
   render () {
     let squares = []
     for (let i = 9; i >= 0; i--) {
       for (let j = 0; j <= 9; j++) {
-        console.log('man this is a lot of renders')
         squares.push(this.makeSquare([j, i]))
       }
     }
@@ -211,10 +200,12 @@ class Board extends React.Component {
 }
 
 class Ship extends React.Component {
+
   drag(e) {
     e.dataTransfer.setData("length", e.target.dataset.size);
     e.dataTransfer.setData("name", e.target.id);
   }
+
   renderSquares(i) {
     let squares = []
     for (let j = 0; j < i; j++) {
@@ -223,8 +214,10 @@ class Ship extends React.Component {
     return squares
   }
   render () {
+    let className = 'ship'
+    if (this.props.hidden) className += ' hidden'
     return (
-      <div className='ship' id={this.props.name} data-size={this.props.size} draggable='true' onDragStart={this.drag}>
+      <div className={className} id={this.props.name} data-size={this.props.size} draggable='true' onDragStart={this.drag}>
         {this.renderSquares(this.props.size)}
       </div>
     )
@@ -234,7 +227,7 @@ class Ship extends React.Component {
 class Game extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []}
+    this.state = {ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: [], shipSpaces: []}
     this.startGame = this.startGame.bind(this)
     this.updateShips = this.updateShips.bind(this)
     this.hitNotifier = this.hitNotifier.bind(this)
@@ -244,23 +237,25 @@ class Game extends React.Component {
 
   renderShips() {
     let shipRows = []
-    shipRows.push(
-      <Ship key='destroyer' name='destroyer' size={2}/>
-    )
-    shipRows.push(
-      <Ship key='submarine' name='submarine' size={3}/>
-    )
-    shipRows.push(
-      <Ship key='cruiser' name='cruiser' size={3}/>
-    )
-    shipRows.push(
-      <Ship key='battleship' name='battleship' size={4}/>
-    )
-    shipRows.push(
-      <Ship key='carrier' name='carrier' size={5}/>
-    )
-    return shipRows
+    let placedShipNames = []
+    let shipsToPlace = [
+      { name: 'destroyer', size: 2 },
+      { name: 'submarine', size: 3 },
+      { name: 'cruiser', size: 3 },
+      { name: 'battleship', size: 4 },
+      { name: 'carrier', size: 5 }
+    ]
+    this.state.ships.forEach(ship => 
+      placedShipNames.push(ship.name))
 
+    shipsToPlace.forEach(ship => {
+      if (placedShipNames.includes(ship.name)) {
+        shipRows.push(<Ship key={ship.name} name={ship.name} size={ship.size} hidden={true}/>)
+      } else {
+        shipRows.push(<Ship key={ship.name} name={ship.name} size={ship.size}/>)
+      }
+    })
+    return shipRows
   }
 
   makeRandomCoords() {
@@ -294,7 +289,7 @@ class Game extends React.Component {
 
   startGame() {
     if (this.state.gameStart) {
-      this.setState({ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []})
+      this.setState({ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: [], shipSpaces: []})
       return
     }
     if (this.state.ships.length !== 5) {
@@ -309,11 +304,32 @@ class Game extends React.Component {
       }
     })
     const computerBoard = this.makeComputerBoard()
-    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []})
+    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: [], shipSpaces: this.state.shipSpaces})
+  }
+
+  makeShipSpaces(ship) {
+    let shipSpaces = []
+    for (let i = 0; i < ship.length; i++) {
+      let x;
+      let y;
+      if (ship.orientation === 'vertical') {
+        x = ship.coords[0]
+        y = ship.coords[1] - i
+      } else {
+        x = ship.coords[0] + i
+        y = ship.coords[1]
+      }
+      shipSpaces.push([x, y])
+    }
+    return shipSpaces
   }
 
   updateShips(ships) {
-      this.setState({ships: ships, gameStart: this.state.gameStart})
+    let shipSpaces = []
+    ships.forEach(ship => {
+      shipSpaces = shipSpaces.concat(this.makeShipSpaces(ship))
+    })
+    this.setState({ships: ships, gameStart: this.state.gameStart, shipSpaces: shipSpaces})
   }
 
 
@@ -386,7 +402,7 @@ class Game extends React.Component {
       <div className='container-main'>
       <div className='header'>{ message }</div>
       <div className='container-board'>
-      <div className='playerBoard'><Board hits={this.state.playerHits} misses={this.state.playerMisses} updateShips={this.updateShips} ships={this.state.ships}/></div>
+      <div className='playerBoard'><Board hits={this.state.playerHits} misses={this.state.playerMisses} updateShips={this.updateShips} ships={this.state.ships} shipSpaces={this.state.shipSpaces}/></div>
       { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} hits={this.state.enemyHits} misses={this.state.enemyMisses} sendAttack={this.sendAttack}/></div> }
       { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
       </div>
