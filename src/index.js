@@ -4,9 +4,19 @@ import './index.css';
 import Gameboard from './Gameboard.js'
 
 class Square extends React.Component {
+  constructor(props) {
+    super(props)
+    this.handleClick = this.handleClick.bind(this)
+  }
+
+  handleClick() {
+    if (!this.props.clickable) return
+    this.props.sendAttack(this.props.coords)
+  }
+
   render () {
     return (
-      <div className='square empty' data-coords={this.props.coords} onClick={this.props.handleClick}></div>
+      <div className={this.props.className} data-coords={this.props.coords} onClick={this.handleClick}></div>
     )
   }
 }
@@ -14,26 +24,27 @@ class Square extends React.Component {
 class EnemyBoard extends React.Component {
   constructor(props) {
     super(props)
-    this.handleClick = this.handleClick.bind(this)
+    this.state = {hits: [], misses: []}
   }
 
-  handleClick(e) {
-    if (e.target.classList.contains('clicked') || e.target.classList.contains('hit')) return
-    if ( this.props.turn === 'player') {
-    const coords = e.target.dataset.coords
-    const sanitizedCoords = [coords[0], coords[2]]
-    if (this.props.board.receiveAttack(sanitizedCoords) === true) {
-      e.target.classList.add('hit')
-      this.props.hitNotifier('player', this.props.board)
-    } else {
-      e.target.classList.add('clicked')
-      this.props.hitNotifier('computer', this.props.board)
-      }
+
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps !== this.props) {
+      console.log('updatey!')
     }
   }
 
   makeSquare(coords) {
-    return <Square key={coords} coords={coords} handleClick={this.handleClick}/>
+    let className = 'square empty'
+    let clickable = true
+    if (arrayContainsCoords(this.props.hits, coords)) {
+      className = 'square empty hit'
+      clickable = false
+    } else if (arrayContainsCoords(this.props.misses, coords)) {
+      className = 'square empty clicked'
+      clickable = false
+    }
+    return <Square className={className} key={coords} clickable={clickable} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack}/>
   }
 
   render () {
@@ -52,13 +63,19 @@ class EnemyBoard extends React.Component {
 class Board extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {ships: this.props.ships}
     this.dropHandler = this.dropHandler.bind(this)
     this.changeShipOrientation = this.changeShipOrientation.bind(this)
+    this.state = {shipNodes: []}
   }
 
   makeSquare(coords) {
-    return <Square key={coords} coords={coords}/>
+    let className = 'square empty'
+    if (arrayContainsCoords(this.props.hits, coords)) {
+      className = 'square empty hit'
+    } else if (arrayContainsCoords(this.props.misses, coords)) {
+      className = 'square empty clicked'
+    }
+    return <Square className={className} key={coords} clickable={false} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack}/>
   }
 
   allowDrop(e){
@@ -182,14 +199,11 @@ class Board extends React.Component {
       }
     }
 
-  componentDidMount() {
-    this.placeAllShips()
-  }
-
   render () {
     let squares = []
     for (let i = 9; i >= 0; i--) {
       for (let j = 0; j <= 9; j++) {
+        console.log('man this is a lot of renders')
         squares.push(this.makeSquare([j, i]))
       }
     }
@@ -207,7 +221,7 @@ class Ship extends React.Component {
   renderSquares(i) {
     let squares = []
     for (let j = 0; j < i; j++) {
-      squares.push(<Square key={j}/>)
+      squares.push(<Square className='square empty' key={j}/>)
     }
     return squares
   }
@@ -223,19 +237,12 @@ class Ship extends React.Component {
 class Game extends React.Component {
   constructor(props) {
     super(props)
-    this.state = {ships: [], gameStart: false}
+    this.state = {ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []}
     this.startGame = this.startGame.bind(this)
     this.updateShips = this.updateShips.bind(this)
     this.hitNotifier = this.hitNotifier.bind(this)
     this.checkForVictory = this.checkForVictory.bind(this)
-  }
-
-  renderBoard(callback) {
-    if (callback) {
-      return <Board updateShips={callback} ships={this.state.ships}/>
-    } else {
-    return <Board ships={this.state.ships} placeShips={this.placeAllShips} />
-    }
+    this.sendAttack = this.sendAttack.bind(this)
   }
 
   renderShips() {
@@ -289,6 +296,10 @@ class Game extends React.Component {
   }
 
   startGame() {
+    if (this.state.gameStart) {
+      this.setState({ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []})
+      return
+    }
     if (this.state.ships.length !== 5) {
       alert('You must place all your ships first!')
       return
@@ -302,38 +313,61 @@ class Game extends React.Component {
       }
     })
     const computerBoard = this.makeComputerBoard()
-    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: []})
+    this.setState({ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits:[], playerMisses: []})
   }
 
   updateShips(ships) {
       this.setState({ships: ships, gameStart: this.state.gameStart})
   }
 
-  containsAttempt(attempts, coords) {
-    return attempts.some(attempt => {
-      if (attempt === undefined || attempt === null) return false
-      return attempt[0] === coords[0] && attempt[1] === coords[1]
-    })
-  }
 
   computerTurn() {
     let coords = this.makeRandomCoords()
-    console.log(coords, this.state.computerAttempts)
-    while (this.containsAttempt(this.state.computerAttempts, coords)) {
-      console.log('redoing coords')
-      console.log(coords)
+    while (arrayContainsCoords(this.state.computerAttempts, coords)) {
       coords = this.makeRandomCoords()
     }
     if (this.state.playerBoard.receiveAttack(coords) === true) {
-      const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
-      cell.classList.add('hit')
-      this.hitNotifier('computer', this.state.computerBoard, coords)
+      this.hitNotifier('computer', 'computer', coords)
     } else {
-    const cell = document.querySelector(`[data-coords='${coords[0]},${coords[1]}']`)
-    cell.classList.add('clicked')
-    this.hitNotifier('player', this.state.computerBoard, coords)
+    this.hitNotifier('computer', 'player', coords)
     }
   }
+
+  sendAttack(coords) {
+    if ( this.state.turn === 'player') {
+    if (this.state.computerBoard.receiveAttack(coords) === true) {
+      this.hitNotifier('player', 'player', coords)
+    } else {
+      this.hitNotifier('player', 'computer', coords)
+      }
+    }
+  }
+
+  hitNotifier(origin, turn, coords) {
+    const newState = JSON.parse(JSON.stringify(this.state))
+    newState.playerBoard = this.state.playerBoard
+    newState.computerBoard = this.state.computerBoard
+    newState.turn = turn
+    if (origin === 'computer') {
+      newState.computerAttempts.push(coords)
+      if (turn === 'computer') {
+        newState.playerHits.push(coords)
+      } else {
+        newState.playerMisses.push(coords)
+      }
+    }
+    if (origin === 'player' && turn === 'player') {
+      newState.enemyHits.push(coords)
+    } else if (origin === 'player' && turn === 'computer') {
+      newState.enemyMisses.push(coords)
+    }
+    if (turn === 'computer') {
+    this.setState(newState, this.computerTurn)
+    } else {
+      this.setState(newState)
+    }
+  }
+
 
   checkForVictory() {
     if (this.state.computerBoard.areAllShipsSunk()) {
@@ -341,34 +375,26 @@ class Game extends React.Component {
     }
   }
 
-  componentDidMount
 
-  hitNotifier(turn, enemyBoard, coords = false) {
-    const newState = JSON.parse(JSON.stringify(this.state))
-    newState.playerBoard = this.state.playerBoard
-    newState.computerBoard = enemyBoard
-    newState.turn = turn
-    if (coords) {
-      newState.computerAttempts.push(coords)
-    }
-    if (turn === 'computer') {
-    setTimeout(() => {this.setState(newState, this.computerTurn)}, 500)
-    } else {
-      this.setState(newState)
+  componentDidUpdate(prevProps, prevState) {
+    if (prevState !== this.state && this.state.gameStart === true){
+      this.checkForVictory()
     }
   }
 
+
   render () {
+    let message = this.state.gameStart ? 'Fight!' : 'Place your ships!'
+    let buttonText = this.state.gameStart ? 'Reset' : 'Start'
     return (
       <div className='container-main'>
-      <div className='header'>Place your ships!</div>
+      <div className='header'>{ message }</div>
       <div className='container-board'>
-      { this.state.gameStart === false && <div className='playerBoard'>{this.renderBoard(this.updateShips)}</div> }
-      { this.state.gameStart === true && <div className='playerBoard'>{this.renderBoard()}</div> }
-      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} checkForVictory={this.checkForVictory}/></div> }
+      <div className='playerBoard'><Board hits={this.state.playerHits} misses={this.state.playerMisses} updateShips={this.updateShips} ships={this.state.ships}/></div>
+      { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} hits={this.state.enemyHits} misses={this.state.enemyMisses} sendAttack={this.sendAttack}/></div> }
       { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
       </div>
-      <button type='button' onClick={this.startGame}>Start Game</button>
+      <button type='button' onClick={this.startGame}>{buttonText}</button>
       </div>
     )
   }
@@ -380,7 +406,13 @@ ReactDOM.render(
   document.getElementById('root')
 )
 
-/* game helpers */
+/* helper function for finding coords in arrays */ 
 
+function arrayContainsCoords(array, coords) {
+  return array.some(array => {
+    if (array === undefined || array === null) return false
+    return array[0] === coords[0] && array[1] === coords[1]
+  })
+}
 
 

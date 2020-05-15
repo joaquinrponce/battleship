@@ -99,7 +99,7 @@ table {
   justify-content: center;
   font-weight: bold;
   font-size: 10pt;
-  transition: background .2s;
+  /*transition: background .2s;*/
 }
 
 .clicked {
