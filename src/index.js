@@ -79,7 +79,7 @@ class Board extends React.Component {
   }
 
   allowDrop(e){
-    e.preventDefault();
+    e.preventDefault();asdfasdfasdfasdf
   }
 
   dropHandler(e) {
