@@ -11,7 +11,9 @@ class Square extends React.Component {
   }
 
   handleClick (e) {
+    /* is not clickable from player board unless contains ship for changing orientation */
     if (!this.props.clickable) return
+    /* does not receive changeOrientation function from EnemyBoard class, so conditional to avoid errors */
     if (this.props.changeOrientation !== null) {
       this.props.changeOrientation(e)
     } else {
@@ -106,6 +108,7 @@ class Board extends React.Component {
     const sourceCoords = e.target.dataset.coords
     const coords = [parseInt(sourceCoords[0]), parseInt(sourceCoords[2])]
     if (this.hasEnoughSpace(coords, length, 'vertical') && !arrayContainsCoords(this.props.shipSpaces, coords)) {
+      /* convert to JSON and back to avoid modifying original prop */
       const placedShips = JSON.parse(JSON.stringify(this.props.ships))
       placedShips.push({ name: name, coords: coords, length: length, orientation: 'vertical' })
       this.props.updateShips(placedShips)
@@ -116,6 +119,7 @@ class Board extends React.Component {
     let adjacentNodes = []
     const x = parseInt(coords[0])
     const y = parseInt(coords[1])
+    /* needs cleaning up */
     adjacentNodes = adjacentNodes.concat([[x + 1, y + 1]])
     adjacentNodes = adjacentNodes.concat([[x - 1, y - 1]])
     adjacentNodes = adjacentNodes.concat([[x, y + 1]])
@@ -138,6 +142,7 @@ class Board extends React.Component {
         enoughSpace = false
       }
     })
+    /* will return false if ship goes beyond right side of board, bottom side of board, or a ship is in the way in either direction */
     for (let i = 1; i < length; i++) {
       let node
       if (orientation === 'horizontal') {
@@ -166,6 +171,7 @@ class Board extends React.Component {
     const coords = [parseInt(sourceCoords[0]), parseInt(sourceCoords[2])]
     let targetShip = null
     this.props.ships.forEach(ship => {
+      /* only allow the first square of each ship to change orientation */
       if (ship.coords[0] === coords[0] && ship.coords[1] === coords[1]) {
         targetShip = ship
       }
@@ -204,6 +210,8 @@ Board.propTypes = {
 }
 
 class Ship extends React.Component {
+
+  /* length and name used for drag-and-drop functionality */
   drag (e) {
     e.dataTransfer.setData('length', e.target.dataset.size)
     e.dataTransfer.setData('name', e.target.id)
@@ -245,6 +253,7 @@ class Game extends React.Component {
     this.sendAttack = this.sendAttack.bind(this)
   }
 
+  /* returns a class='hidden' ship div if ship has already been placed on board for css purposes */
   renderShips () {
     const shipRows = []
     const placedShipNames = []
@@ -268,6 +277,7 @@ class Game extends React.Component {
     return shipRows
   }
 
+  /* functions to create a randomized board for the computer player */
   makeRandomCoords () {
     const coords = []
     coords[0] = Math.floor(Math.random() * 10)
@@ -297,6 +307,7 @@ class Game extends React.Component {
     return computerBoard
   }
 
+  /* currently starts game and also restarts it if gameStart is true, will split into a different function */
   startGame () {
     if (this.state.gameStart) {
       this.setState({ ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: [] })
@@ -317,6 +328,7 @@ class Game extends React.Component {
     this.setState({ ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: this.state.shipSpaces })
   }
 
+  /* makes an array of coordinates that Squares use to determine their class */
   makeShipSpaces (ship) {
     const shipSpaces = []
     for (let i = 0; i < ship.length; i++) {
@@ -334,6 +346,7 @@ class Game extends React.Component {
     return shipSpaces
   }
 
+  /* called every time that a ship is drag-and-dropped, or clicked to change orientation succesfully */
   updateShips (ships) {
     let shipSpaces = []
     ships.forEach(ship => {
@@ -344,6 +357,7 @@ class Game extends React.Component {
 
   computerTurn () {
     let coords = this.makeRandomCoords()
+    /* avoid attacking the same spot more than once */
     while (arrayContainsCoords(this.state.computerAttempts, coords)) {
       coords = this.makeRandomCoords()
     }
@@ -370,6 +384,7 @@ class Game extends React.Component {
     newState.computerBoard = this.state.computerBoard
     newState.turn = turn
     if (origin === 'computer') {
+      /* record computer attempt */
       newState.computerAttempts.push(coords)
       if (turn === 'computer') {
         newState.playerHits.push(coords)
@@ -389,12 +404,14 @@ class Game extends React.Component {
     }
   }
 
+  /* currently only checks if player won */
   checkForVictory () {
     if (this.state.computerBoard.areAllShipsSunk()) {
       alert('you won')
     }
   }
 
+  /* called on every move while game is ongoing */
   componentDidUpdate (prevProps, prevState) {
     if (prevState !== this.state && this.state.gameStart === true) {
       this.checkForVictory()
