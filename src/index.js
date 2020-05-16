@@ -210,7 +210,6 @@ Board.propTypes = {
 }
 
 class Ship extends React.Component {
-
   /* length and name used for drag-and-drop functionality */
   drag (e) {
     e.dataTransfer.setData('length', e.target.dataset.size)
