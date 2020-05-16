@@ -40,14 +40,6 @@ class EnemyBoard extends React.Component {
     this.state = { hits: [], misses: [] }
   }
 
-  /* for console debugging
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps !== this.props) {
-      console.log('updatey!')
-    }
-  } */
-
   makeSquare (coords) {
     let className = 'square empty'
     let clickable = true
@@ -168,24 +160,6 @@ class Board extends React.Component {
     }
     return enoughSpace
   }
-
-  /* should not need this removeOldShipSpaces(name) {
-    const nodes = document.querySelectorAll(`.${name}`)
-      nodes.forEach(node => {
-        node.classList.remove(`${name}`)
-        node.classList.add('empty')
-      })
-
-  } */
-
-  /* should not need this
-  componentDidUpdate (prevProps, prevState) {
-    if (prevProps.ships !== this.props.ships) {
-      this.props.ships.forEach(ship => {
-        this.placeShip(ship.name, ship.length, ship.coords, ship.orientation)
-      })
-    }
-  } */
 
   changeShipOrientation (e) {
     const sourceCoords = e.target.dataset.coords
