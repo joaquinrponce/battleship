@@ -52,6 +52,9 @@ class EnemyBoard extends React.Component {
       className = 'square empty clicked'
       clickable = false
     }
+    if (this.props.gameOver) {
+      clickable = false
+    }
     return <Square className={className} key={coords} clickable={clickable} test={true} x={coords[0]} y={coords[1]} coords={coords} sendAttack={this.props.sendAttack} changeOrientation={null}/>
   }
 
@@ -244,12 +247,14 @@ Ship.propTypes = {
 class Game extends React.Component {
   constructor (props) {
     super(props)
-    this.state = { ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: [] }
+    this.state = { ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: [], gameOver: false }
     this.startGame = this.startGame.bind(this)
     this.updateShips = this.updateShips.bind(this)
     this.hitNotifier = this.hitNotifier.bind(this)
     this.checkForVictory = this.checkForVictory.bind(this)
     this.sendAttack = this.sendAttack.bind(this)
+    this.computerTurn = this.computerTurn.bind(this)
+    this.resetGame = this.resetGame.bind(this)
   }
 
   /* returns a class='hidden' ship div if ship has already been placed on board for css purposes */
@@ -307,11 +312,15 @@ class Game extends React.Component {
   }
 
   /* currently starts game and also restarts it if gameStart is true, will split into a different function */
-  startGame () {
+
+  resetGame () {
     if (this.state.gameStart) {
       this.setState({ ships: [], playerBoard: null, gameStart: false, computerBoard: null, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: [] })
       return
     }
+  }
+
+  startGame () {
     if (this.state.ships.length !== 5) {
       alert('You must place all your ships first!')
       return
@@ -324,7 +333,7 @@ class Game extends React.Component {
       }
     })
     const computerBoard = this.makeComputerBoard()
-    this.setState({ ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: this.state.shipSpaces })
+    this.setState({ ships: this.state.ships, playerBoard: playerBoard, gameStart: true, computerBoard: computerBoard, turn: 'player', computerAttempts: [], enemyHits: [], enemyMisses: [], playerHits: [], playerMisses: [], shipSpaces: this.state.shipSpaces, gameOver: false })
   }
 
   /* makes an array of coordinates that Squares use to determine their class */
@@ -354,7 +363,10 @@ class Game extends React.Component {
     this.setState({ ships: ships, gameStart: this.state.gameStart, shipSpaces: shipSpaces })
   }
 
-  computerTurn () {
+
+
+  async computerTurn () {
+    await sleep(500)
     let coords = this.makeRandomCoords()
     /* avoid attacking the same spot more than once */
     while (arrayContainsCoords(this.state.computerAttempts, coords)) {
@@ -407,12 +419,20 @@ class Game extends React.Component {
   checkForVictory () {
     if (this.state.computerBoard.areAllShipsSunk()) {
       alert('you won')
+      const newState = this.state
+      newState.gameOver = true
+      this.setState(newState)
+    } else if (this.state.playerBoard.areAllShipsSunk()) {
+      alert('the computer won oof')
+      const newState = this.state
+      newState.gameOver = true
+      this.setState(newState)
     }
   }
 
   /* called on every move while game is ongoing */
   componentDidUpdate (prevProps, prevState) {
-    if (prevState !== this.state && this.state.gameStart === true) {
+    if (prevState !== this.state && this.state.gameStart === true && this.state.gameOver === false) {
       this.checkForVictory()
     }
   }
@@ -420,15 +440,16 @@ class Game extends React.Component {
   render () {
     const message = this.state.gameStart ? 'Fight!' : 'Place your ships!'
     const buttonText = this.state.gameStart ? 'Reset' : 'Start'
+    const buttonFunc = this.state.gameStart ? this.resetGame : this.startGame
     return (
       <div className='container-main'>
         <div className='header'>{ message }</div>
         <div className='container-board'>
           <div className='playerBoard'><Board hits={this.state.playerHits} misses={this.state.playerMisses} updateShips={this.updateShips} ships={this.state.ships} shipSpaces={this.state.shipSpaces}/></div>
-          { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} hits={this.state.enemyHits} misses={this.state.enemyMisses} sendAttack={this.sendAttack}/></div> }
+          { this.state.gameStart === true && <div className='enemyBoard'><EnemyBoard board={this.state.computerBoard} test={'test'} hitNotifier={this.hitNotifier} turn={this.state.turn} hits={this.state.enemyHits} misses={this.state.enemyMisses} sendAttack={this.sendAttack} gameOver={this.state.gameOver}/></div> }
           { this.state.gameStart === false && <div className='placeShips'>{ this.renderShips() }</div> }
         </div>
-        <button type='button' onClick={this.startGame}>{buttonText}</button>
+        <button type='button' onClick={buttonFunc}>{buttonText}</button>
       </div>
     )
   }
@@ -446,4 +467,10 @@ function arrayContainsCoords (array, coords) {
     if (array === undefined || array === null) return false
     return array[0] === coords[0] && array[1] === coords[1]
   })
+}
+
+/* sleep function */ 
+
+function sleep (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
