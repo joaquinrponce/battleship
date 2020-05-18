@@ -106,6 +106,9 @@ class Board extends React.Component {
   }
 
   dropHandler (e) {
+    if (e.dataTransfer.getData('name') === null) return
+    console.log(e)
+    e.persist()
     const length = e.dataTransfer.getData('length')
     const name = e.dataTransfer.getData('name')
     const sourceCoords = e.target.dataset.coords
@@ -115,6 +118,7 @@ class Board extends React.Component {
       const placedShips = JSON.parse(JSON.stringify(this.props.ships))
       placedShips.push({ name: name, coords: coords, length: length, orientation: 'vertical' })
       this.props.updateShips(placedShips)
+      console.log(placedShips)
     }
   }
 
